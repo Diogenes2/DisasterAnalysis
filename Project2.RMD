@@ -1,0 +1,100 @@
+---
+title: "Extreme Weather Analysis Project"
+author: "Benjamin Milks"
+date: "March 3, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Synopsis
+
+The National Oceanic and Atmospheric Administration has a database with weather and the damage it caused to the United States. In terms of people's health tornados are by far the most harmful accouting for over 5000 deaths. Heat events are also dangerous and should not be ignored. When crop and property damage was looked at there was more variation top events than injuries and fatalities. For crops drought is the most harmful. Flooding did the most property damage.
+
+## Getting the Storm Data in a Usable Form
+
+The data was downloaded from cloudfront.net where they had the storm data. The data was collected by the U.S. National Oceanic and Atmospheric Administration's storm databases.
+```{r}
+setwd("~/R AND GITHUB AND EVERYTHING/R/rr/rrproj2/rrproj2/sdata")
+stormdataurl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+download.file(stormdataurl, destfile = "~/R AND GITHUB AND EVERYTHING/R/rr/rrproj2/rrproj2/sdata/StormData.csv.bz2")
+stormdf <- read.csv(bzfile("StormData.csv.bz2"), header = TRUE)
+```
+
+## Isolating the Relevent Data For Extreme Weather Analysis (Data Processing) 
+I need the event type, number of fatalities, number of injuries for part of my analysis. We also need categories titled "PROPDMG" and "PROPDMGEXP" to figure out the damage to property. The method used here was a base number in PROPDMG and then a number in PROPDMG which multiplies the base number by a factor of 10. The same is needed for "CROPDMG" and "CROPDMGEXP". Some of the exponetials were in letters like "K" for 10^3, so we can change all of the letters to their corresponding numbers. This needed done for property and crop damage.
+
+```{r}
+relstormdf <- stormdf[c(8,23,24,25,26,27,28)]
+levels(relstormdf$CROPDMGEXP)[levels(relstormdf$CROPDMGEXP) == ""] <- as.numeric(0)
+levels(relstormdf$CROPDMGEXP)[levels(relstormdf$CROPDMGEXP) == "K"] <- as.numeric(3)
+levels(relstormdf$CROPDMGEXP)[levels(relstormdf$CROPDMGEXP) == "k"] <- as.numeric(3)
+levels(relstormdf$CROPDMGEXP)[levels(relstormdf$CROPDMGEXP) == "M"] <- as.numeric(6)
+levels(relstormdf$CROPDMGEXP)[levels(relstormdf$CROPDMGEXP) == "m"] <- as.numeric(6)
+levels(relstormdf$CROPDMGEXP)[levels(relstormdf$CROPDMGEXP) == "B"] <- as.numeric(9)
+levels(relstormdf$CROPDMGEXP)[levels(relstormdf$CROPDMGEXP) == "?"] <- as.numeric(0)
+
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == ""] <- as.numeric(0)
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == "K"] <- as.numeric(3)
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == "k"] <- as.numeric(3)
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == "M"] <- as.numeric(6)
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == "m"] <- as.numeric(6)
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == "B"] <- as.numeric(9)
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == "H"] <- as.numeric(2)
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == "h"] <- as.numeric(2)
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == "?"] <- as.numeric(0)
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == "-"] <- as.numeric(0)
+levels(relstormdf$PROPDMGEXP)[levels(relstormdf$PROPDMGEXP) == "+"] <- as.numeric(0)
+
+relstormdf$CROPDMGEXP <- as.numeric(as.character(relstormdf$CROPDMGEXP))
+relstormdf$PROPDMGEXP <- as.numeric(as.character(relstormdf$PROPDMGEXP))
+
+relstormdf$CROP <- relstormdf$CROPDMG * (10^relstormdf$CROPDMGEXP)
+relstormdf$PROP <- relstormdf$PROPDMG * (10^relstormdf$PROPDMGEXP)
+```
+  
+Now the data is ready to see the which events have the greatest amount of injuries and deaths, property damage, and crop damage. To make the graphs easy to understand I will just choose the top 6 events for each type of damage measurement.
+
+```{r , }
+fsum <- aggregate(relstormdf$FATALITIES, by=list(Category=relstormdf$EVTYPE), FUN=sum)
+isum <- aggregate(relstormdf$INJURIES, by=list(Category=relstormdf$EVTYPE), FUN=sum)
+csum <- aggregate(relstormdf$CROP, by=list(Category=relstormdf$EVTYPE), FUN=sum)
+psum <- aggregate(relstormdf$PROP, by=list(Category=relstormdf$EVTYPE), FUN=sum)
+ftail <- tail(sort(fsum$x), 6)
+itail <- tail(sort(isum$x), 6)
+ctail <- tail(sort(csum$x), 6)
+ptail <- tail(sort(psum$x), 6)
+fs <- fsum[fsum$x %in% ftail,] 
+is <- isum[isum$x %in% itail,] 
+cs <- csum[csum$x %in% ctail,] 
+ps <- psum[psum$x %in% ptail,] 
+
+```
+
+
+## Results
+When we look at the fatalities and injuries bar graphs, we can see they have very similar event types in their top six. Tornado is by far number one for both categories. It had over 5000 deaths and 80000 injuries. Thunderstorm wind, heat, lightning, and flood were on the list but not as significant. Looking at the third figure, we see the damage to crops we see that drought is the most harmful event type. Flooding and ice storms are the next most damaging to crops. This makes sense intuitively because crops need water to grow. In this figure we also see that floods cause the most property damage, with tornados, storm surges, and hurricanes/typhoons are quite damaging too. 
+
+### Figure 1
+
+```{r}
+par(las=2, mar = c(5, 10, 4, 2) + 0.1)
+barplot(fs$x, names.arg = fs$Category, horiz = TRUE, main = "Deaths by Top Event Types")
+
+```
+
+### Figure 2
+
+```{r , }
+par(las=2, mar = c(5, 10, 4, 2) + 0.1)
+barplot(is$x, names.arg = is$Category, horiz = TRUE, main = "Injuries by Top Event Types")
+```
+
+### Figure 3
+
+```{r }
+par(mfrow= c(1,2),  mar = c(5, 10, 4, 2) + 0.1)
+barplot(cs$x, names.arg = cs$Category, horiz = TRUE, main = "Crop Damage By Event Type" )
+barplot(ps$x, names.arg = ps$Category, horiz = TRUE, main = "Property Damage By Event Type")
+```
